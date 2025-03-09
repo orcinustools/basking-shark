@@ -218,14 +218,25 @@ Your output must be in this JSON format:
   ]
 }
 
-Be precise with your commands. Use standard Linux/Unix commands that would work on most distributions. Don't use placeholder values - if you need to make assumptions, state them in your thinking.`;
+IMPORTANT RULES:
+1. Be precise with your commands. Use standard Linux/Unix commands that would work on most distributions.
+2. Do NOT include any ssh or connection commands - the user is already connected to the server.
+3. Do NOT use the server name in your commands - use only local commands that would work on the server.
+4. Don't use placeholder values - if you need to make assumptions, state them in your thinking.`;
+
+      // Get server details
+      const serverConfig = serverConnections[serverName];
+      if (!serverConfig) {
+        throw new Error(`Server ${serverName} not found`);
+      }
 
       // User prompt for all models
-      const userPrompt = `I need you to help me with the following task on my server named "${serverName}":
+      const userPrompt = `I need you to help me with the following task on my server (${serverConfig.username}@${serverConfig.host}):
               
 ${instruction}
 
-Please analyze this request, break it down using Chain of Thought reasoning, and determine the exact commands needed.`;
+Please analyze this request, break it down using Chain of Thought reasoning, and determine the exact commands needed. 
+Do NOT include any ssh or connection commands in your response - I'm already connected to the server.`;
 
       if (modelConfig.provider === 'anthropic') {
         response = await anthropic.messages.create({
@@ -302,6 +313,21 @@ Please analyze this request, break it down using Chain of Thought reasoning, and
         actions = parsedResponse.actions || [];
       }
       
+      // Check for SSH commands
+      const originalActionsCount = actions.length;
+      actions = actions.filter(action => {
+        const cmd = action.command.toLowerCase();
+        return !cmd.startsWith('ssh ') && 
+               !cmd.includes(' ssh ') && 
+               !cmd.includes('@') &&
+               !cmd.includes(serverName.toLowerCase());
+      });
+      
+      // If we filtered out any actions, add a warning
+      if (actions.length < originalActionsCount) {
+        thinking.push("WARNING: Some SSH or connection commands were removed. The AI agent is already connected to the server and should only use local commands.");
+      }
+      
       return {
         thinking,
         actions
@@ -318,34 +344,51 @@ Please analyze this request, break it down using Chain of Thought reasoning, and
       throw new Error(`Server ${serverName} not found`);
     }
     
+    console.log(`Connecting to server: ${serverName}`);
+    console.log(`Server config: ${JSON.stringify({
+      host: serverConfig.host,
+      port: serverConfig.port,
+      username: serverConfig.username,
+      authType: serverConfig.authType
+    })}`);
+    
     const conn = new Client();
     
     try {
       return await new Promise((resolve, reject) => {
         conn.on('ready', () => {
+          console.log(`SSH connection established to ${serverConfig.host}`);
           conn.exec(command, (err, stream) => {
             if (err) {
+              console.error(`Error executing command: ${err.message}`);
               reject(err);
               return;
             }
             
+            console.log(`Executing command: ${command}`);
             let output = '';
             let errorOutput = '';
             
             stream.on('data', (data) => {
-              output += data.toString();
+              const chunk = data.toString();
+              console.log(`Command output: ${chunk}`);
+              output += chunk;
             });
             
             stream.stderr.on('data', (data) => {
-              errorOutput += data.toString();
+              const chunk = data.toString();
+              console.error(`Command error output: ${chunk}`);
+              errorOutput += chunk;
             });
             
             stream.on('close', (code) => {
+              console.log(`Command completed with exit code: ${code}`);
               conn.end();
               resolve({ output, errorOutput, exitCode: code });
             });
           });
         }).on('error', (err) => {
+          console.error(`SSH connection error: ${err.message}`);
           reject(err);
         }).connect({
           host: serverConfig.host,
