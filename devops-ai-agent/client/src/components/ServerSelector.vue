@@ -85,5 +85,8 @@ onMounted(() => {
         </div>
       </div>
     </div>
+    
+    <!-- Slot for additional content after the server list -->
+    <slot name="after-servers"></slot>
   </div>
 </template>

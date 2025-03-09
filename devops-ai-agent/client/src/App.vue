@@ -6,9 +6,15 @@ import AIAgent from './components/AIAgent.vue';
 import LLMConfig from './components/LLMConfig.vue';
 
 const selectedServer = ref('');
+const showServerRegistration = ref(false);
 
 const handleServerRegistered = (serverName) => {
   selectedServer.value = serverName;
+  showServerRegistration.value = false; // Hide the form after successful registration
+};
+
+const toggleServerRegistration = () => {
+  showServerRegistration.value = !showServerRegistration.value;
 };
 </script>
 
@@ -25,8 +31,24 @@ const handleServerRegistered = (serverName) => {
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Server Management Column -->
         <div class="md:col-span-1">
-          <ServerRegistration @server-registered="handleServerRegistered" />
-          <ServerSelector v-model:selectedServer="selectedServer" />
+          <ServerSelector v-model:selectedServer="selectedServer">
+            <template #after-servers>
+              <div class="mt-3 text-center">
+                <button 
+                  @click="toggleServerRegistration" 
+                  class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md text-sm"
+                >
+                  {{ showServerRegistration ? 'Cancel' : 'Add New Server' }}
+                </button>
+              </div>
+            </template>
+          </ServerSelector>
+          
+          <!-- Server Registration Form (appears below ServerSelector) -->
+          <div v-if="showServerRegistration" class="mt-4">
+            <ServerRegistration @server-registered="handleServerRegistered" />
+          </div>
+          
           <LLMConfig />
         </div>
         
