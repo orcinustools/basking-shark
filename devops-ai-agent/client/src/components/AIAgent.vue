@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { io } from 'socket.io-client';
-import ModelSelector from './ModelSelector.vue';
 
 const props = defineProps({
   serverName: {
@@ -13,7 +12,6 @@ const props = defineProps({
 const instruction = ref('');
 const isProcessing = ref(false);
 const error = ref('');
-const modelType = ref('openai');
 const socket = ref(null);
 
 // Agent state
@@ -78,8 +76,7 @@ const processInstruction = () => {
   // Send instruction to server
   socket.value.emit('process-instruction', {
     instruction: instruction.value,
-    serverName: props.serverName,
-    model: modelType.value
+    serverName: props.serverName
   });
 };
 
@@ -103,8 +100,6 @@ const useExample = (example) => {
     <p class="text-gray-600 mb-4">
       Tell the AI agent what you want to do on <span class="font-semibold">{{ serverName }}</span>, and it will break down the task and execute the necessary commands.
     </p>
-    
-    <ModelSelector v-model:modelType="modelType" />
     
     <div v-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
       {{ error }}

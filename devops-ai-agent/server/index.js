@@ -89,10 +89,14 @@ const anthropic = new Anthropic({
   apiKey: llmConfig.api_keys.anthropic || 'your-anthropic-api-key'
 });
 
+// Qwen API is handled through OpenAI client with a different base URL
+// We'll implement this in the DevOpsAgent class when needed
+
 // AI Agent with Chain of Thought
 class DevOpsAgent {
-  constructor(model = 'openai') {
-    this.model = model;
+  constructor(model = null) {
+    // Use provided model, active model, or default model
+    this.model = model || llmConfig.active_model || llmConfig.default_model;
     this.thinking = [];
     this.actions = [];
     this.results = [];
@@ -191,12 +195,8 @@ class DevOpsAgent {
                           llmConfig.models.find(m => m.id === llmConfig.default_model) ||
                           { provider: 'openai', model: 'gpt-4', temperature: 0.2, max_tokens: 2000 };
       
-      if (modelConfig.provider === 'anthropic') {
-        response = await anthropic.messages.create({
-          model: modelConfig.model,
-          max_tokens: modelConfig.max_tokens || 2000,
-          temperature: modelConfig.temperature || 0.2,
-          system: `You are a DevOps AI agent that helps manage servers. You need to:
+      // System prompt for all models
+      const systemPrompt = `You are a DevOps AI agent that helps manage servers. You need to:
 1. Understand the user's instruction
 2. Break down the task into a series of steps using Chain of Thought reasoning
 3. For each step, determine the exact command to run on the server
@@ -218,15 +218,25 @@ Your output must be in this JSON format:
   ]
 }
 
-Be precise with your commands. Use standard Linux/Unix commands that would work on most distributions. Don't use placeholder values - if you need to make assumptions, state them in your thinking.`,
-          messages: [
-            {
-              role: "user",
-              content: `I need you to help me with the following task on my server named "${serverName}":
+Be precise with your commands. Use standard Linux/Unix commands that would work on most distributions. Don't use placeholder values - if you need to make assumptions, state them in your thinking.`;
+
+      // User prompt for all models
+      const userPrompt = `I need you to help me with the following task on my server named "${serverName}":
               
 ${instruction}
 
-Please analyze this request, break it down using Chain of Thought reasoning, and determine the exact commands needed.`
+Please analyze this request, break it down using Chain of Thought reasoning, and determine the exact commands needed.`;
+
+      if (modelConfig.provider === 'anthropic') {
+        response = await anthropic.messages.create({
+          model: modelConfig.model,
+          max_tokens: modelConfig.max_tokens || 2000,
+          temperature: modelConfig.temperature || 0.2,
+          system: systemPrompt,
+          messages: [
+            {
+              role: "user",
+              content: userPrompt
             }
           ]
         });
@@ -241,6 +251,33 @@ Please analyze this request, break it down using Chain of Thought reasoning, and
         } else {
           throw new Error("Failed to parse AI response");
         }
+      } else if (modelConfig.provider === 'qwen') {
+        // Create a temporary OpenAI client with Qwen base URL
+        const qwenClient = new OpenAI({
+          apiKey: llmConfig.api_keys.qwen || 'your-qwen-api-key',
+          baseURL: 'https://api.qwen.ai/v1',
+        });
+        
+        response = await qwenClient.chat.completions.create({
+          model: modelConfig.model,
+          temperature: modelConfig.temperature || 0.2,
+          max_tokens: modelConfig.max_tokens,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt
+            },
+            {
+              role: "user",
+              content: userPrompt
+            }
+          ]
+        });
+        
+        const parsedResponse = JSON.parse(response.choices[0].message.content);
+        thinking = parsedResponse.thinking || [];
+        actions = parsedResponse.actions || [];
       } else {
         // Default to OpenAI
         response = await openai.chat.completions.create({
@@ -251,37 +288,11 @@ Please analyze this request, break it down using Chain of Thought reasoning, and
           messages: [
             {
               role: "system",
-              content: `You are a DevOps AI agent that helps manage servers. You need to:
-1. Understand the user's instruction
-2. Break down the task into a series of steps using Chain of Thought reasoning
-3. For each step, determine the exact command to run on the server
-4. Explain why each command is necessary
-
-Your output must be in this JSON format:
-{
-  "thinking": [
-    "Step 1: First, I need to...",
-    "Step 2: Next, I should...",
-    ...
-  ],
-  "actions": [
-    {
-      "command": "actual linux command to run",
-      "purpose": "explanation of what this command does and why it's needed"
-    },
-    ...
-  ]
-}
-
-Be precise with your commands. Use standard Linux/Unix commands that would work on most distributions. Don't use placeholder values - if you need to make assumptions, state them in your thinking.`
+              content: systemPrompt
             },
             {
               role: "user",
-              content: `I need you to help me with the following task on my server named "${serverName}":
-              
-${instruction}
-
-Please analyze this request, break it down using Chain of Thought reasoning, and determine the exact commands needed.`
+              content: userPrompt
             }
           ]
         });
@@ -365,65 +376,80 @@ Please analyze this request, break it down using Chain of Thought reasoning, and
                           llmConfig.models.find(m => m.id === llmConfig.default_model) ||
                           { provider: 'openai', model: 'gpt-4', temperature: 0.3, max_tokens: 1500 };
       
+      // System prompt for all models
+      const systemPrompt = "You are a DevOps AI assistant that analyzes the results of server commands and provides insights. Be thorough but concise.";
+      
+      // User prompt for all models
+      const userPrompt = `I executed the following commands based on this instruction: "${context.instruction}"
+
+Here are the commands and their results:
+${context.results.map(r => `
+Command: ${r.command}
+Output: ${r.output}
+Error: ${r.error}
+Exit Code: ${r.exitCode}
+`).join('\n')}
+
+Please analyze these results and tell me:
+1. Whether the overall task was successful
+2. What each command accomplished
+3. If there were any issues or errors
+4. What the next steps should be (if any)
+5. Any recommendations for improvement`;
+
       if (modelConfig.provider === 'anthropic') {
         const response = await anthropic.messages.create({
           model: modelConfig.model,
           max_tokens: modelConfig.max_tokens || 1500,
           temperature: modelConfig.temperature || 0.3,
-          system: "You are a DevOps AI assistant that analyzes the results of server commands and provides insights. Be thorough but concise.",
+          system: systemPrompt,
           messages: [
             {
               role: "user",
-              content: `I executed the following commands based on this instruction: "${context.instruction}"
-
-Here are the commands and their results:
-${context.results.map(r => `
-Command: ${r.command}
-Output: ${r.output}
-Error: ${r.error}
-Exit Code: ${r.exitCode}
-`).join('\n')}
-
-Please analyze these results and tell me:
-1. Whether the overall task was successful
-2. What each command accomplished
-3. If there were any issues or errors
-4. What the next steps should be (if any)
-5. Any recommendations for improvement`
+              content: userPrompt
             }
           ]
         });
         
         analysis = response.content[0].text;
+      } else if (modelConfig.provider === 'qwen') {
+        // Create a temporary OpenAI client with Qwen base URL
+        const qwenClient = new OpenAI({
+          apiKey: llmConfig.api_keys.qwen || 'your-qwen-api-key',
+          baseURL: 'https://api.qwen.ai/v1',
+        });
+        
+        const response = await qwenClient.chat.completions.create({
+          model: modelConfig.model,
+          temperature: modelConfig.temperature || 0.3,
+          max_tokens: modelConfig.max_tokens || 1500,
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt
+            },
+            {
+              role: "user",
+              content: userPrompt
+            }
+          ]
+        });
+        
+        analysis = response.choices[0].message.content;
       } else {
         // Default to OpenAI
         const response = await openai.chat.completions.create({
           model: modelConfig.model,
           temperature: modelConfig.temperature || 0.3,
-          max_tokens: modelConfig.max_tokens,
+          max_tokens: modelConfig.max_tokens || 1500,
           messages: [
             {
               role: "system",
-              content: "You are a DevOps AI assistant that analyzes the results of server commands and provides insights. Be thorough but concise."
+              content: systemPrompt
             },
             {
               role: "user",
-              content: `I executed the following commands based on this instruction: "${context.instruction}"
-
-Here are the commands and their results:
-${context.results.map(r => `
-Command: ${r.command}
-Output: ${r.output}
-Error: ${r.error}
-Exit Code: ${r.exitCode}
-`).join('\n')}
-
-Please analyze these results and tell me:
-1. Whether the overall task was successful
-2. What each command accomplished
-3. If there were any issues or errors
-4. What the next steps should be (if any)
-5. Any recommendations for improvement`
+              content: userPrompt
             }
           ]
         });
@@ -487,6 +513,7 @@ app.get('/api/llm-config', (req, res) => {
   // Return LLM configuration without API keys
   const safeConfig = {
     models: llmConfig.models,
+    active_model: llmConfig.active_model || llmConfig.default_model,
     default_model: llmConfig.default_model
   };
   
@@ -494,34 +521,41 @@ app.get('/api/llm-config', (req, res) => {
 });
 
 app.post('/api/llm-config', (req, res) => {
-  const { api_keys } = req.body;
+  const { api_key, model_id } = req.body;
   
-  if (api_keys) {
-    // Update API keys
-    if (api_keys.openai) {
-      llmConfig.api_keys.openai = api_keys.openai;
-    }
-    
-    if (api_keys.anthropic) {
-      llmConfig.api_keys.anthropic = api_keys.anthropic;
-    }
-    
-    // Save to file
-    fs.writeFileSync(LLM_CONFIG_PATH, JSON.stringify(llmConfig, null, 2));
+  if (!model_id) {
+    return res.status(400).json({ error: 'Model ID is required' });
+  }
+  
+  // Find the model
+  const model = llmConfig.models.find(m => m.id === model_id);
+  if (!model) {
+    return res.status(400).json({ error: 'Invalid model ID' });
+  }
+  
+  // Update API key if provided
+  if (api_key) {
+    llmConfig.api_keys[model.provider] = api_key;
     
     // Reinitialize clients
-    if (api_keys.openai) {
-      openai.apiKey = api_keys.openai;
+    if (model.provider === 'openai') {
+      openai.apiKey = api_key;
+    } else if (model.provider === 'anthropic') {
+      anthropic.apiKey = api_key;
     }
-    
-    if (api_keys.anthropic) {
-      anthropic.apiKey = api_keys.anthropic;
-    }
-    
-    res.json({ success: true, message: 'LLM configuration updated successfully' });
-  } else {
-    res.status(400).json({ error: 'Invalid configuration' });
+    // Qwen doesn't need reinitialization as we create a new client each time
   }
+  
+  // Set as active model
+  llmConfig.active_model = model_id;
+  
+  // Save to file
+  fs.writeFileSync(LLM_CONFIG_PATH, JSON.stringify(llmConfig, null, 2));
+  
+  res.json({ 
+    success: true, 
+    message: `${model.name} configured successfully and set as active model` 
+  });
 });
 
 // Socket.io connection handling
@@ -547,7 +581,8 @@ io.on('connection', (socket) => {
       return;
     }
     
-    const agent = new DevOpsAgent(model || 'openai');
+    // Use provided model or active model from config
+    const agent = new DevOpsAgent(model || llmConfig.active_model);
     await agent.processInstruction(instruction, serverName, socket);
   });
   

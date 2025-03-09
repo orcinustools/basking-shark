@@ -8,7 +8,7 @@ AI agent dengan kemampuan Chain of Thought (CoT) untuk meremote server dan melak
 - Chain of Thought (CoT) untuk memecah tugas kompleks menjadi langkah-langkah yang logis
 - Eksekusi otomatis perintah pada server jarak jauh
 - Analisis hasil eksekusi dan rekomendasi langkah selanjutnya
-- Dukungan untuk model AI dari OpenAI (GPT-4) dan Anthropic (Claude 3.7 Sonnet)
+- Dukungan untuk model AI dari OpenAI (GPT-4), Anthropic (Claude 3.7 Sonnet), dan Qwen (2.5)
 - Antarmuka pengguna yang intuitif dengan Vue.js dan Tailwind CSS
 
 ## Teknologi yang Digunakan
@@ -18,6 +18,7 @@ AI agent dengan kemampuan Chain of Thought (CoT) untuk meremote server dan melak
 - **AI**: 
   - OpenAI API dengan model GPT-4
   - Anthropic API dengan model Claude 3.7 Sonnet
+  - Qwen API dengan model Qwen 2.5
 - **Remote Access**: SSH2 library
 
 ## Cara Kerja
@@ -67,10 +68,13 @@ Folder `data/` telah ditambahkan ke `.gitignore` untuk memastikan informasi sens
      PORT=50539
      OPENAI_API_KEY=your-openai-api-key
      ANTHROPIC_API_KEY=your-anthropic-api-key
+     QWEN_API_KEY=your-qwen-api-key
      ```
    - **Metode 2**: Melalui antarmuka web setelah aplikasi berjalan
      - Buka aplikasi di browser
-     - Isi form "LLM Configuration" dengan API key Anda
+     - Pilih model AI (OpenAI GPT-4, Claude 3.7 Sonnet, atau Qwen 2.5)
+     - Masukkan API key untuk model yang dipilih
+     - Model yang dipilih akan ditandai sebagai "Active" dan digunakan untuk semua operasi
 
 4. Jalankan aplikasi:
    ```bash
