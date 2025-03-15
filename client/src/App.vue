@@ -8,6 +8,7 @@ import LLMConfig from './components/LLMConfig.vue';
 const selectedServer = ref('');
 const showServerRegistration = ref(false);
 const serverConfigs = ref({});
+const showLeftPanel = ref(true); // For toggling left panel visibility
 
 // Load server configurations
 const loadServerConfigs = async () => {
@@ -44,16 +45,38 @@ const toggleServerRegistration = () => {
 <template>
   <div class="min-h-screen bg-gray-100">
     <header class="bg-blue-700 text-white p-4 shadow-md">
-      <div class="container mx-auto">
-        <h1 class="text-3xl font-bold">DevOps AI Agent</h1>
-        <p class="text-blue-100">AI-powered server management with Chain of Thought reasoning</p>
+      <div class="container mx-auto flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-bold">DevOps AI Agent</h1>
+          <p class="text-blue-100">AI-powered server management with Chain of Thought reasoning</p>
+        </div>
+        <button 
+          v-if="selectedServer"
+          @click="showLeftPanel = !showLeftPanel"
+          class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+        >
+          <span v-if="showLeftPanel">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3zm3 0v14h10V3H6z" clip-rule="evenodd"/>
+            </svg>
+          </span>
+          <span v-else>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h14a1 1 0 001-1V4a1 1 0 00-1-1H3zm1 2v10h12V5H4z" clip-rule="evenodd"/>
+            </svg>
+          </span>
+          <span class="hidden md:inline">{{ showLeftPanel ? 'Hide' : 'Show' }} Config</span>
+        </button>
       </div>
     </header>
     
     <main class="container mx-auto py-6 px-4">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="flex gap-6">
         <!-- Server Management Column -->
-        <div class="md:col-span-1">
+        <div 
+          v-if="showLeftPanel || !selectedServer" 
+          class="w-80 transition-all duration-300 ease-in-out"
+        >
           <ServerSelector v-model:selectedServer="selectedServer">
             <template #after-servers>
               <div class="mt-3 text-center">
@@ -76,7 +99,7 @@ const toggleServerRegistration = () => {
         </div>
         
         <!-- AI Agent Column -->
-        <div class="md:col-span-2">
+        <div class="flex-1">
           <div v-if="selectedServer">
             <AIAgent 
               :server-name="selectedServer"
