@@ -219,7 +219,9 @@ onMounted(() => {
         </div>
         <div class="flex-1 cursor-pointer" @click="selectServer(server.name)">
           <div class="font-medium">{{ server.name }}</div>
-          <div class="text-sm text-gray-500">{{ server.username }}@{{ server.host }}</div>
+          <div class="text-sm text-gray-500 truncate max-w-[150px]" :title="`${server.username}@${server.host}`">
+            {{ server.username }}@{{ server.host }}
+          </div>
         </div>
         <div class="flex items-center space-x-2">
           <button 
