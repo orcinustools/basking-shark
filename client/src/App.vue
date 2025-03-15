@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import ServerRegistration from './components/ServerRegistration.vue';
 import ServerSelector from './components/ServerSelector.vue';
 import AIAgent from './components/AIAgent.vue';
@@ -7,11 +7,34 @@ import LLMConfig from './components/LLMConfig.vue';
 
 const selectedServer = ref('');
 const showServerRegistration = ref(false);
+const serverConfigs = ref({});
 
-const handleServerRegistered = (serverName) => {
+// Load server configurations
+const loadServerConfigs = async () => {
+  try {
+    const response = await fetch('/api/servers');
+    const data = await response.json();
+    if (data.servers) {
+      serverConfigs.value = data.servers.reduce((acc, server) => {
+        acc[server.name] = server;
+        return acc;
+      }, {});
+    }
+  } catch (error) {
+    console.error('Error loading server configurations:', error);
+  }
+};
+
+const handleServerRegistered = async (serverName) => {
+  await loadServerConfigs();
   selectedServer.value = serverName;
   showServerRegistration.value = false; // Hide the form after successful registration
 };
+
+// Load configs on mount
+onMounted(() => {
+  loadServerConfigs();
+});
 
 const toggleServerRegistration = () => {
   showServerRegistration.value = !showServerRegistration.value;
@@ -55,7 +78,10 @@ const toggleServerRegistration = () => {
         <!-- AI Agent Column -->
         <div class="md:col-span-2">
           <div v-if="selectedServer">
-            <AIAgent :server-name="selectedServer" />
+            <AIAgent 
+              :server-name="selectedServer"
+              :server-config="serverConfigs[selectedServer]"
+            />
           </div>
           
           <!-- Placeholder when no server is selected -->

@@ -79,6 +79,47 @@
   @apply my-8 border-t border-gray-300;
 }
 
+/* Terminal Scrollbar */
+.terminal-content::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.terminal-content::-webkit-scrollbar-track {
+  background: #1E1E1E;
+}
+
+.terminal-content::-webkit-scrollbar-thumb {
+  background: #3E3E3E;
+  border-radius: 5px;
+  border: 2px solid #1E1E1E;
+}
+
+.terminal-content::-webkit-scrollbar-thumb:hover {
+  background: #4E4E4E;
+}
+
+/* Chat Scrollbar */
+.chat-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.chat-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.chat-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+  border: 2px solid #f1f1f1;
+}
+
+.chat-container::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   font-synthesis: none;
