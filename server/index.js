@@ -80,6 +80,105 @@ const saveServers = () => {
   fs.writeFileSync(SERVERS_PATH, JSON.stringify(serversData, null, 2));
 };
 
+// API endpoints for server management
+app.put('/api/servers/:name', (req, res) => {
+  const { name } = req.params;
+  const serverData = req.body;
+
+  console.log('Updating server:', name, 'with data:', {
+    ...serverData,
+    password: serverData.password ? '[REDACTED]' : undefined,
+    privateKey: serverData.privateKey ? '[REDACTED]' : undefined
+  });
+
+  // Check if server exists
+  if (!serverConnections[name]) {
+    console.error('Server not found:', name);
+    return res.status(404).json({ error: 'Server not found' });
+  }
+
+  const currentServer = serverConnections[name];
+
+  // Create updated server object with defaults from current server
+  const updatedServer = {
+    name: name,
+    host: serverData.host || currentServer.host,
+    port: parseInt(serverData.port || currentServer.port) || 22,
+    username: serverData.username || currentServer.username,
+    authType: serverData.authType || currentServer.authType,
+    // Keep existing auth credentials if not provided
+    password: currentServer.password,
+    privateKey: currentServer.privateKey
+  };
+
+  // Validate required fields
+  if (!updatedServer.host || !updatedServer.username || !updatedServer.authType) {
+    console.error('Missing required fields for server:', name);
+    return res.status(400).json({ 
+      error: 'Missing required fields',
+      details: {
+        host: !updatedServer.host ? 'Host is required' : null,
+        username: !updatedServer.username ? 'Username is required' : null,
+        authType: !updatedServer.authType ? 'Authentication type is required' : null
+      }
+    });
+  }
+
+  // Validate port
+  if (isNaN(updatedServer.port) || updatedServer.port < 1 || updatedServer.port > 65535) {
+    console.error('Invalid port number for server:', name, 'port:', updatedServer.port);
+    return res.status(400).json({ error: 'Port must be a number between 1 and 65535' });
+  }
+
+  // Update auth credentials if provided
+  if (updatedServer.authType === 'password') {
+    if (serverData.password) {
+      updatedServer.password = serverData.password;
+      delete updatedServer.privateKey; // Remove private key when switching to password
+    } else if (!currentServer.password) {
+      console.error('Password required for server:', name);
+      return res.status(400).json({ error: 'Password is required for password authentication' });
+    }
+  } else if (updatedServer.authType === 'privateKey') {
+    if (serverData.privateKey) {
+      updatedServer.privateKey = serverData.privateKey;
+      delete updatedServer.password; // Remove password when switching to private key
+    } else if (!currentServer.privateKey) {
+      console.error('Private key required for server:', name);
+      return res.status(400).json({ error: 'Private key is required for key authentication' });
+    }
+  }
+
+  // Save updated server
+  serverConnections[name] = updatedServer;
+  saveServers();
+
+  console.log('Server updated successfully:', name);
+  res.json({ 
+    message: 'Server updated successfully',
+    server: {
+      ...updatedServer,
+      password: updatedServer.password ? '[REDACTED]' : undefined,
+      privateKey: updatedServer.privateKey ? '[REDACTED]' : undefined
+    }
+  });
+});
+
+app.delete('/api/servers/:name', (req, res) => {
+  const { name } = req.params;
+
+  // Check if server exists
+  if (!serverConnections[name]) {
+    return res.status(404).json({ error: 'Server not found' });
+  }
+
+  // Delete server
+  delete serverConnections[name];
+  saveServers();
+
+  res.json({ message: 'Server deleted successfully' });
+});
+
 // Initialize AI clients
 const openai = new OpenAI({
   apiKey: llmConfig.api_keys.openai || 'your-openai-api-key'
