@@ -37,3 +37,4 @@ yarn-error.log
 ehthumbs.db
 Thumbs.db
 data/
+*.log
