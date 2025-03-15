@@ -1,6 +1,14 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { io } from 'socket.io-client';
+import MarkdownIt from 'markdown-it';
+
+const md = new MarkdownIt({
+  html: true,
+  breaks: true,
+  linkify: true,
+  typographer: true
+});
 
 const props = defineProps({
   serverName: {
@@ -263,7 +271,7 @@ const useExample = (example) => {
 
             <!-- Analysis -->
             <div v-if="interaction.analysis" class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-              <div class="prose prose-sm max-w-none" v-html="interaction.analysis.replace(/\n/g, '<br>')"></div>
+              <div class="prose prose-sm max-w-none markdown-content" v-html="md.render(interaction.analysis)"></div>
             </div>
 
             <!-- Error Message -->

@@ -410,7 +410,7 @@ Do NOT include any ssh or connection commands in your response - I'm already con
       const context = {
         instruction,
         thinking: this.thinking,
-        actions: this.actions.map(a => a.command),
+        actions: this.actions.map(a => ({ command: a.command, purpose: a.purpose })),
         results: this.results
       };
       
@@ -420,36 +420,68 @@ Do NOT include any ssh or connection commands in your response - I'm already con
                           { provider: 'openai', model: 'gpt-4', temperature: 0.3, max_tokens: 1500 };
       
       // System prompt for all models
-      const systemPrompt = "You are a DevOps AI assistant that analyzes the results of server commands and provides insights. Be thorough but concise.";
+      const systemPrompt = `You are a DevOps AI assistant that analyzes command results and provides clear, actionable insights.
+
+Your analysis should:
+1. Directly answer the user's original question/request
+2. Be specific about what was found or accomplished
+3. Highlight any important findings or issues
+4. Provide clear next steps or recommendations if needed
+
+Format your response using Markdown with this structure:
+
+# Direct Answer
+[Clearly state whether the original request was fulfilled]
+
+## Findings
+- [Discovery 1]
+- [Discovery 2]
+...
+
+## Issues (if any)
+- [Problem 1]
+- [Problem 2]
+...
+
+## Next Steps/Recommendations
+1. [Action step 1]
+2. [Action step 2]
+...
+
+Use proper Markdown formatting:
+- Use \`code\` for commands and technical terms
+- Use **bold** for emphasis
+- Use > for important notes
+- Use --- for separators where needed
+- Use proper heading levels (#, ##, ###)`;
       
       // User prompt for all models
-      const userPrompt = `I executed the following commands based on this instruction: "${context.instruction}"
+      const userPrompt = `Original Request: "${instruction}"
 
-Here are the commands and their results:
-${context.results.map(r => `
+Commands Executed and Results:
+${context.results.map((r, i) => `
 Command: ${r.command}
-Output: ${r.output}
-Error: ${r.error}
+Purpose: ${context.actions[i]?.purpose || 'Not specified'}
+Output: ${r.output || 'No output'}
+Error: ${r.error || 'No errors'}
 Exit Code: ${r.exitCode}
 `).join('\n')}
 
-Please analyze these results and tell me:
-1. Whether the overall task was successful
-2. What each command accomplished
-3. If there were any issues or errors
-4. What the next steps should be (if any)
-5. Any recommendations for improvement`;
+Chain of Thought Analysis:
+${context.thinking.join('\n')}
+
+Please provide a comprehensive analysis that directly addresses the original request and explains what was found.
+Focus on answering the user's question and providing actionable insights.`;
 
       if (modelConfig.provider === 'anthropic') {
         const response = await anthropic.messages.create({
           model: modelConfig.model,
           max_tokens: modelConfig.max_tokens || 1500,
           temperature: modelConfig.temperature || 0.3,
-          system: systemPrompt,
           messages: [
             {
               role: "user",
-              content: userPrompt
+              content: `${systemPrompt}\n\n${userPrompt}\n\nRemember to format your response according to the structure specified above.`
             }
           ]
         });
@@ -473,7 +505,7 @@ Please analyze these results and tell me:
             },
             {
               role: "user",
-              content: userPrompt
+              content: userPrompt + "\n\nRemember to format your response according to the structure specified above."
             }
           ]
         });
@@ -485,6 +517,7 @@ Please analyze these results and tell me:
           model: modelConfig.model,
           temperature: modelConfig.temperature || 0.3,
           max_tokens: modelConfig.max_tokens || 1500,
+          response_format: { type: "text" },
           messages: [
             {
               role: "system",
@@ -492,7 +525,7 @@ Please analyze these results and tell me:
             },
             {
               role: "user",
-              content: userPrompt
+              content: userPrompt + "\n\nRemember to format your response according to the structure specified above."
             }
           ]
         });
