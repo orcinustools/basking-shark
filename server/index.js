@@ -92,14 +92,50 @@ const anthropic = new Anthropic({
 // Qwen API is handled through OpenAI client with a different base URL
 // We'll implement this in the DevOpsAgent class when needed
 
+// Store chat histories for each connection
+const chatHistories = new Map();
+
 // AI Agent with Chain of Thought
 class DevOpsAgent {
-  constructor(model = null) {
+  constructor(model = null, socketId = null) {
     // Use provided model, active model, or default model
     this.model = model || llmConfig.active_model || llmConfig.default_model;
     this.thinking = [];
     this.actions = [];
     this.results = [];
+    this.socketId = socketId;
+    
+    // Initialize chat history for this connection if it doesn't exist
+    if (socketId && !chatHistories.has(socketId)) {
+      chatHistories.set(socketId, []);
+    }
+  }
+
+  getChatHistory() {
+    if (!this.socketId) return [];
+    return chatHistories.get(this.socketId) || [];
+  }
+
+  addToHistory(interaction) {
+    if (!this.socketId) return;
+    const history = this.getChatHistory();
+    history.push(interaction);
+    chatHistories.set(this.socketId, history);
+  }
+
+  getContextFromHistory() {
+    const history = this.getChatHistory();
+    if (history.length === 0) return "";
+
+    // Create a context string from the last 5 interactions
+    return history.slice(-5).map(interaction => {
+      return `User: ${interaction.instruction}
+AI Thought Process: ${interaction.thinking.join("\n")}
+Commands Executed: ${interaction.actions.map(a => a.command).join(", ")}
+Results: ${interaction.results.map(r => r.output).join("\n")}
+Analysis: ${interaction.analysis || ""}
+---`;
+    }).join("\n");
   }
 
   async processInstruction(instruction, serverName, socket) {
@@ -114,10 +150,23 @@ class DevOpsAgent {
         type: 'thinking',
         message: 'Analyzing your instruction...'
       });
+
+      // Create current interaction object
+      const currentInteraction = {
+        instruction,
+        timestamp: new Date().toISOString(),
+        thinking: [],
+        actions: [],
+        results: []
+      };
       
       const planningResult = await this.planWithCoT(instruction, serverName);
       this.thinking = planningResult.thinking;
       this.actions = planningResult.actions;
+      
+      // Update current interaction
+      currentInteraction.thinking = this.thinking;
+      currentInteraction.actions = this.actions;
       
       socket.emit('agent-update', { 
         type: 'thinking-complete',
@@ -162,16 +211,25 @@ class DevOpsAgent {
       
       const analysis = await this.analyzeResults(instruction);
       
+      // Update current interaction with final results
+      currentInteraction.results = this.results;
+      currentInteraction.analysis = analysis;
+      
+      // Add to history
+      this.addToHistory(currentInteraction);
+      
       socket.emit('agent-update', { 
         type: 'complete',
-        analysis: analysis
+        analysis: analysis,
+        history: this.getChatHistory()
       });
       
       return {
         thinking: this.thinking,
         actions: this.actions,
         results: this.results,
-        analysis: analysis
+        analysis: analysis,
+        history: this.getChatHistory()
       };
     } catch (error) {
       socket.emit('agent-update', { 
@@ -456,7 +514,10 @@ Use proper Markdown formatting:
 - Use proper heading levels (#, ##, ###)`;
       
       // User prompt for all models
-      const userPrompt = `Original Request: "${instruction}"
+      // Get chat history context
+      const historyContext = this.getContextFromHistory();
+      
+      const userPrompt = `${historyContext ? `Previous Interactions:\n${historyContext}\n\n` : ''}Original Request: "${instruction}"
 
 Commands Executed and Results:
 ${context.results.map((r, i) => `
@@ -470,8 +531,11 @@ Exit Code: ${r.exitCode}
 Chain of Thought Analysis:
 ${context.thinking.join('\n')}
 
-Please provide a comprehensive analysis that directly addresses the original request and explains what was found.
-Focus on answering the user's question and providing actionable insights.`;
+Please provide a comprehensive analysis that:
+1. Uses the context from previous interactions if relevant
+2. Directly addresses the original request
+3. Explains what was found and any changes from previous states
+4. Provides actionable insights based on the complete context`;
 
       if (modelConfig.provider === 'anthropic') {
         const response = await anthropic.messages.create({
@@ -636,7 +700,12 @@ app.post('/api/llm-config', (req, res) => {
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('New client connected');
+  console.log('New client connected:', socket.id);
+  
+  // Send existing history if any
+  if (chatHistories.has(socket.id)) {
+    socket.emit('chat-history', chatHistories.get(socket.id));
+  }
   
   socket.on('process-instruction', async (data) => {
     const { instruction, serverName, model } = data;
@@ -657,13 +726,20 @@ io.on('connection', (socket) => {
       return;
     }
     
-    // Use provided model or active model from config
-    const agent = new DevOpsAgent(model || llmConfig.active_model);
+    // Use provided model or active model from config, and include socket ID
+    const agent = new DevOpsAgent(model || llmConfig.active_model, socket.id);
     await agent.processInstruction(instruction, serverName, socket);
   });
   
   socket.on('disconnect', () => {
-    console.log('Client disconnected');
+    console.log('Client disconnected:', socket.id);
+    // Keep history for reconnection within 1 hour
+    setTimeout(() => {
+      if (chatHistories.has(socket.id)) {
+        console.log('Cleaning up chat history for:', socket.id);
+        chatHistories.delete(socket.id);
+      }
+    }, 3600000); // 1 hour
   });
 });
 
