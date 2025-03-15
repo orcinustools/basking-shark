@@ -1,0 +1,38 @@
+{
+    "models": [
+        {
+            "id": "gpt-4",
+            "name": "GPT-4",
+            "provider": "openai",
+            "model": "gpt-4",
+            "description": "Most capable OpenAI model, best at complex tasks",
+            "temperature": 0.2,
+            "max_tokens": 2000
+        },
+        {
+            "id": "claude-2",
+            "name": "Claude 2",
+            "provider": "anthropic",
+            "model": "claude-2",
+            "description": "Anthropic's most capable model, excellent at analysis and coding",
+            "temperature": 0.3,
+            "max_tokens": 1500
+        },
+        {
+            "id": "qwen-max",
+            "name": "Qwen Max",
+            "provider": "qwen",
+            "model": "qwen-max",
+            "description": "Alibaba's most powerful model, good at multilingual tasks",
+            "temperature": 0.3,
+            "max_tokens": 1500
+        }
+    ],
+    "default_model": "gpt-4",
+    "active_model": "gpt-4",
+    "api_keys": {
+        "openai": "",
+        "anthropic": "",
+        "qwen": ""
+    }
+}
