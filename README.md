@@ -82,6 +82,98 @@ Show system status
 - **AI Models**: OpenAI GPT-4, Anthropic Claude, Qwen
 - **Security**: SSH2 + Secure Credential Storage
 
+## 🤝 Contributing
+
+We love your input! We want to make contributing to Basking Shark as easy and transparent as possible, whether it's:
+
+- 🐛 Reporting a bug
+- 💡 Submitting a fix
+- 🌟 Proposing new features
+- 💻 Becoming a maintainer
+
+### Development Process
+
+1. Fork the repo and create your branch from `main`:
+```bash
+git clone https://github.com/your-username/basking-shark.git
+cd basking-shark
+git checkout -b feature/amazing-feature
+```
+
+2. Install dependencies:
+```bash
+# Server dependencies
+cd server && npm install
+
+# Client dependencies
+cd ../client && npm install
+```
+
+3. Make your changes:
+- Follow the code style
+- Add tests if applicable
+- Update documentation
+
+4. Test your changes:
+```bash
+# Build client
+cd client && npm run build
+
+# Run server in development mode
+cd ../server && npm run dev
+```
+
+5. Commit your changes:
+```bash
+git add .
+git commit -m "feat: add amazing feature"
+```
+
+6. Push and create a pull request:
+```bash
+git push origin feature/amazing-feature
+```
+
+### Pull Request Process
+
+1. Update the README.md with details of changes if needed
+2. Update the version numbers following [Semantic Versioning](https://semver.org/)
+3. Your PR will be merged once you have the sign-off of maintainers
+
+### Code Style
+
+- Use meaningful variable and function names
+- Add comments for non-obvious code
+- Follow Vue.js style guide for frontend
+- Use ES6+ features for JavaScript
+- Keep functions small and focused
+
+### Bug Reports
+
+When filing an issue, make sure to answer these questions:
+
+1. What version of Node.js are you using?
+2. What operating system are you using?
+3. What did you do?
+4. What did you expect to see?
+5. What did you see instead?
+
+### Feature Requests
+
+We welcome feature requests! Please provide:
+
+1. Clear description of the feature
+2. Use cases and benefits
+3. Possible implementation approach
+4. Any relevant examples
+
+### Community
+
+- Be welcoming and inclusive
+- Respect each other's viewpoints
+- Accept constructive criticism
+- Focus on what is best for the community
+
 ## 📜 License
 
 Copyright (c) 2024 Eka Tresna Irawan <anak10thn@gmail.com>
