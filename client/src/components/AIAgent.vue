@@ -26,6 +26,7 @@ const terminalRef = ref(null);
 const currentCommand = ref('');
 const isExecuting = ref(false);
 const connectionStatus = ref({});
+const showTerminal = ref(true);
 
 const instruction = ref('');
 const isProcessing = ref(false);
@@ -199,11 +200,31 @@ const useExample = (example) => {
 <template>
   <div class="flex h-[calc(100vh-2rem)] gap-4">
     <!-- Left Side: Chat Interface -->
-    <div class="flex-1 bg-white shadow-md rounded-lg p-6 flex flex-col overflow-hidden">
-      <h2 class="text-2xl font-bold mb-2 text-gray-800">AI DevOps Agent</h2>
-      <p class="text-gray-600 mb-4">
-        Connected to <span class="font-semibold">{{ serverName }}</span>
-      </p>
+    <div :class="{
+      'w-[calc(100%-520px)]': showTerminal,
+      'w-full': !showTerminal
+    }" class="bg-white shadow-md rounded-lg p-6 flex flex-col overflow-hidden transition-all duration-300">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800">AI DevOps Agent</h2>
+          <p class="text-gray-600">
+            Connected to <span class="font-semibold">{{ serverName }}</span>
+          </p>
+        </div>
+        <button 
+          @click="showTerminal = !showTerminal"
+          class="px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-2"
+          :class="showTerminal ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-blue-50 hover:bg-blue-100 text-blue-600'"
+        >
+          <svg v-if="showTerminal" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          {{ showTerminal ? 'Hide Terminal' : 'Show Terminal' }}
+        </button>
+      </div>
 
       <!-- Chat/Conversation Area -->
       <div class="flex-1 overflow-y-auto mb-4 space-y-4 chat-container" ref="chatContainer">
@@ -290,13 +311,13 @@ const useExample = (example) => {
                   
                   <div v-if="interaction.results[i]" class="p-3">
                     <div v-if="interaction.results[i].output" 
-                         class="bg-black text-green-400 p-2 rounded font-mono text-xs overflow-auto max-h-40">
-                      <pre>{{ interaction.results[i].output }}</pre>
+                         class="bg-black text-green-400 p-2 rounded font-mono text-xs overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
+                      <pre class="inline">{{ interaction.results[i].output }}</pre>
                     </div>
                     
                     <div v-if="interaction.results[i].error"
-                         class="mt-2 bg-black text-red-400 p-2 rounded font-mono text-xs overflow-auto max-h-40">
-                      <pre>{{ interaction.results[i].error }}</pre>
+                         class="mt-2 bg-black text-red-400 p-2 rounded font-mono text-xs overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
+                      <pre class="inline">{{ interaction.results[i].error }}</pre>
                     </div>
                   </div>
                 </div>
@@ -366,7 +387,9 @@ const useExample = (example) => {
     </div>
 
     <!-- Right Side: Terminal -->
-    <div class="w-[500px] bg-black rounded-lg shadow-xl overflow-hidden flex flex-col">
+    <div v-show="showTerminal" 
+         class="w-[500px] bg-black rounded-lg shadow-xl overflow-hidden flex flex-col transition-all duration-300"
+         :class="showTerminal ? 'opacity-100' : 'opacity-0 w-0'">
       <Terminal 
         ref="terminalRef"
         :server-info="serverConfig"
