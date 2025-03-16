@@ -44,11 +44,23 @@ const toggleServerRegistration = () => {
 
 <template>
   <div class="min-h-screen bg-gray-100">
-    <header class="bg-blue-700 text-white p-4 shadow-md">
+    <header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white p-4 shadow-md">
       <div class="container mx-auto flex justify-between items-center">
         <div>
-          <h1 class="text-3xl font-bold">DevOps AI Agent</h1>
-          <p class="text-blue-100">AI-powered server management with Chain of Thought reasoning</p>
+          <div class="flex items-center gap-3">
+            <div class="relative">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-yellow-300 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 absolute top-0 left-0 text-white opacity-50" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+            </div>
+            <h1 class="text-3xl font-bold">Basking Shark</h1>
+          </div>
+          <p class="text-blue-100 font-medium mt-1">
+            <span class="text-yellow-300">🔥 Unleash the Power of AI</span> - Dominate Your Server Management!
+          </p>
         </div>
         <button 
           v-if="selectedServer"
@@ -121,9 +133,20 @@ const toggleServerRegistration = () => {
       </div>
     </main>
     
-    <footer class="bg-gray-800 text-white p-4 mt-8">
+    <footer class="bg-gradient-to-r from-gray-900 to-blue-900 text-white p-4 mt-8">
       <div class="container mx-auto text-center">
-        <p>DevOps AI Agent - AI-powered server management with Chain of Thought reasoning</p>
+        <div class="flex items-center justify-center gap-2 mb-1">
+          <div class="relative">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-300 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 absolute top-0 left-0 text-white opacity-50" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+          </div>
+          <span class="font-bold">Basking Shark</span>
+        </div>
+        <p class="text-sm text-blue-200">Empowering DevOps with AI-Driven Server Management 🚀</p>
       </div>
     </footer>
   </div>

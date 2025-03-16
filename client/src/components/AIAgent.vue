@@ -206,10 +206,21 @@ const useExample = (example) => {
     }" class="bg-white shadow-md rounded-lg p-6 flex flex-col overflow-hidden transition-all duration-300">
       <div class="flex justify-between items-center mb-4">
         <div>
-          <h2 class="text-2xl font-bold text-gray-800">AI DevOps Agent</h2>
-          <p class="text-gray-600">
-            Connected to <span class="font-semibold">{{ serverName }}</span>
-          </p>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-2xl font-bold text-gray-800">Command Center</h2>
+              <span class="px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">BETA</span>
+            </div>
+            <p class="text-gray-600 flex items-center gap-2">
+              <span class="flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full animate-pulse" 
+                      :class="isExecuting ? 'bg-green-500' : 'bg-blue-500'">
+                </span>
+                {{ isExecuting ? 'Executing' : 'Connected to' }}
+              </span>
+              <span class="font-semibold">{{ serverName }}</span>
+            </p>
+          </div>
         </div>
         <button 
           @click="showTerminal = !showTerminal"
@@ -230,8 +241,8 @@ const useExample = (example) => {
       <div class="flex-1 overflow-y-auto mb-4 space-y-4 chat-container" ref="chatContainer">
         <!-- Welcome Message -->
         <div v-if="!hasInteraction" class="text-center py-8">
-          <h3 class="text-xl font-semibold text-gray-700 mb-4">Welcome to DevOps AI Agent! 👋</h3>
-          <p class="text-gray-600 mb-6">I can help you manage your server with natural language commands.</p>
+          <h3 class="text-2xl font-bold text-gray-800 mb-2">🦈 Welcome to Basking Shark! 🚀</h3>
+          <p class="text-gray-600 mb-6 text-lg">Ready to dominate your server management with the power of AI? Let's get started!</p>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
             <div class="bg-blue-50 p-4 rounded-lg">
