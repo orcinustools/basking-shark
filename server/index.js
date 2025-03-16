@@ -829,7 +829,87 @@ io.on('connection', (socket) => {
     const agent = new DevOpsAgent(model || llmConfig.active_model, socket.id);
     await agent.processInstruction(instruction, serverName, socket);
   });
+
+  // Handle batch command execution
+  socket.on('execute-batch', async (data) => {
+    const { commands, serverName } = data;
+    
+    if (!Array.isArray(commands) || commands.length === 0) {
+      socket.emit('batch-update', { 
+        type: 'error',
+        message: 'Commands must be a non-empty array'
+      });
+      return;
+    }
+    
+    if (!serverName || !serverConnections[serverName]) {
+      socket.emit('batch-update', { 
+        type: 'error',
+        message: 'Invalid or missing server name'
+      });
+      return;
+    }
+
+    try {
+      socket.emit('batch-update', {
+        type: 'start',
+        total: commands.length
+      });
+
+      for (let i = 0; i < commands.length; i++) {
+        const command = commands[i].trim();
+        if (!command) continue;
+
+        socket.emit('batch-update', {
+          type: 'executing',
+          command,
+          index: i
+        });
+
+        try {
+          const result = await executeCommand(serverName, command);
+          socket.emit('batch-update', {
+            type: 'result',
+            index: i,
+            command,
+            output: result.output,
+            error: result.errorOutput,
+            exitCode: result.exitCode
+          });
+
+          // Stop batch if a command fails
+          if (result.exitCode !== 0) {
+            socket.emit('batch-update', {
+              type: 'error',
+              message: `Batch execution stopped due to error in command: ${command}`,
+              index: i
+            });
+            break;
+          }
+        } catch (error) {
+          socket.emit('batch-update', {
+            type: 'error',
+            message: `Error executing command: ${error.message}`,
+            command,
+            index: i
+          });
+          break;
+        }
+      }
+
+      socket.emit('batch-update', {
+        type: 'complete'
+      });
+    } catch (error) {
+      socket.emit('batch-update', {
+        type: 'error',
+        message: `Batch execution failed: ${error.message}`
+      });
+    }
+  });
   
+
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
     // Keep history for reconnection within 1 hour

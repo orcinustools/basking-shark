@@ -1,14 +1,29 @@
 <template>
   <div class="flex flex-col h-full bg-black text-green-400 font-mono text-sm overflow-hidden">
     <!-- Terminal Header -->
-    <div class="bg-[#2D2D2D] px-4 py-2 flex items-center justify-between border-b border-gray-700">
-      <div class="flex items-center space-x-2">
-        <div class="w-3 h-3 rounded-full bg-[#FF5F56] hover:bg-[#FF5F56]/80 cursor-pointer"></div>
-        <div class="w-3 h-3 rounded-full bg-[#FFBD2E] hover:bg-[#FFBD2E]/80 cursor-pointer"></div>
-        <div class="w-3 h-3 rounded-full bg-[#27C93F] hover:bg-[#27C93F]/80 cursor-pointer"></div>
+    <div class="bg-[#2D2D2D] px-4 py-2 flex flex-col border-b border-gray-700">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <div class="w-3 h-3 rounded-full bg-[#FF5F56] hover:bg-[#FF5F56]/80 cursor-pointer"></div>
+          <div class="w-3 h-3 rounded-full bg-[#FFBD2E] hover:bg-[#FFBD2E]/80 cursor-pointer"></div>
+          <div class="w-3 h-3 rounded-full bg-[#27C93F] hover:bg-[#27C93F]/80 cursor-pointer"></div>
+        </div>
+        <div class="text-gray-400 text-xs font-semibold">
+          {{ serverInfo.username }}@{{ serverInfo.host }}
+        </div>
       </div>
-      <div class="text-gray-400 text-xs font-semibold">
-        {{ serverInfo.username }}@{{ serverInfo.host }}
+      
+      <!-- Batch Progress -->
+      <div v-if="isBatchMode && batchCommands.length > 0" class="mt-2">
+        <div class="flex items-center justify-between text-xs text-gray-400">
+          <span>Executing batch commands: {{ currentBatchIndex + 1 }}/{{ batchCommands.length }}</span>
+          <span>{{ Math.round(((currentBatchIndex + 1) / batchCommands.length) * 100) }}%</span>
+        </div>
+        <div class="w-full h-1 bg-gray-700 rounded-full mt-1">
+          <div class="h-full bg-[#27C93F] rounded-full transition-all duration-300"
+               :style="{ width: `${((currentBatchIndex + 1) / batchCommands.length) * 100}%` }">
+          </div>
+        </div>
       </div>
     </div>
 
@@ -66,6 +81,18 @@ const props = defineProps({
   isExecuting: {
     type: Boolean,
     default: false
+  },
+  isBatchMode: {
+    type: Boolean,
+    default: false
+  },
+  batchCommands: {
+    type: Array,
+    default: () => []
+  },
+  currentBatchIndex: {
+    type: Number,
+    default: -1
   }
 });
 

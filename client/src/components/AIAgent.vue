@@ -27,6 +27,9 @@ const currentCommand = ref('');
 const isExecuting = ref(false);
 const connectionStatus = ref({});
 const showTerminal = ref(true);
+const isBatchMode = ref(false);
+const batchCommands = ref([]);
+const currentBatchIndex = ref(-1);
 
 const instruction = ref('');
 const isProcessing = ref(false);
@@ -142,6 +145,24 @@ onUnmounted(() => {
 
 const processInstruction = async () => {
   if (!instruction.value.trim()) return;
+  
+  // Check if it's a batch command (commands separated by semicolons or newlines)
+  const commands = instruction.value
+    .split(/[;\n]/)
+    .map(cmd => cmd.trim())
+    .filter(cmd => cmd.length > 0);
+  
+  if (commands.length > 1) {
+    // Execute as batch
+    socket.value.emit('execute-batch', {
+      commands,
+      serverName: props.serverName
+    });
+    
+    // Clear instruction
+    instruction.value = '';
+    return;
+  }
   
   hasInteraction.value = true;
   isProcessing.value = true;
@@ -406,6 +427,9 @@ const useExample = (example) => {
         :server-info="serverConfig"
         :current-command="currentCommand"
         :is-executing="isExecuting"
+        :is-batch-mode="isBatchMode"
+        :batch-commands="batchCommands"
+        :current-batch-index="currentBatchIndex"
       />
     </div>
   </div>
