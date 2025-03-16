@@ -1,5 +1,7 @@
 # 🦈 Basking Shark
 
+![Basking Shark](docs/bs-min.png)
+
 ⚡ **Unleash the Power of AI in Your Server Management!**
 
 Basking Shark is a powerful AI-driven server management tool that lets you control your servers using natural language. No more remembering complex commands - just tell the AI what you want to do!
