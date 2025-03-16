@@ -5,6 +5,10 @@ const props = defineProps({
   selectedServer: {
     type: String,
     default: ''
+  },
+  connectionStatus: {
+    type: Object,
+    default: () => ({})
   }
 });
 
@@ -218,7 +222,14 @@ onMounted(() => {
           </div>
         </div>
         <div class="flex-1 cursor-pointer" @click="selectServer(server.name)">
-          <div class="font-medium">{{ server.name }}</div>
+          <div class="flex items-center gap-2">
+            <span class="font-medium">{{ server.name }}</span>
+            <span v-if="selectedServer === server.name" 
+                  class="px-1.5 py-0.5 text-xs rounded-full"
+                  :class="connectionStatus[server.name]?.connected ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'">
+              {{ connectionStatus[server.name]?.connected ? 'Connected' : 'Selected' }}
+            </span>
+          </div>
           <div class="text-sm text-gray-500 truncate max-w-[150px]" :title="`${server.username}@${server.host}`">
             {{ server.username }}@{{ server.host }}
           </div>

@@ -25,6 +25,7 @@ const props = defineProps({
 const terminalRef = ref(null);
 const currentCommand = ref('');
 const isExecuting = ref(false);
+const connectionStatus = ref({});
 
 const instruction = ref('');
 const isProcessing = ref(false);
@@ -59,6 +60,8 @@ onMounted(() => {
       isExecuting.value = true;
       const cmd = data.message.replace('Executing: ', '');
       currentCommand.value = cmd;
+      // Update connection status when executing command
+      connectionStatus.value[props.serverName] = { connected: true };
       if (currentInteraction) {
         if (!currentInteraction.actions) {
           currentInteraction.actions = [];
@@ -113,6 +116,10 @@ onMounted(() => {
           currentInteraction.suggestions = data.suggestions;
         }
       }
+      // Update connection status on error
+      if (data.message.includes('SSH connection error') || data.message.includes('authentication failed')) {
+        connectionStatus.value[props.serverName] = { connected: false };
+      }
       isProcessing.value = false;
     }
 
@@ -128,6 +135,8 @@ onUnmounted(() => {
   if (socket.value) {
     socket.value.disconnect();
   }
+  // Clear connection status
+  connectionStatus.value = {};
 });
 
 const processInstruction = async () => {

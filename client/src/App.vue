@@ -104,6 +104,7 @@ const toggleServerRegistration = () => {
             <AIAgent 
               :server-name="selectedServer"
               :server-config="serverConfigs[selectedServer]"
+              :connection-status="connectionStatus"
             />
           </div>
           
