@@ -1,132 +1,105 @@
-# DevOps AI Agent
+# 🦈 Basking Shark
 
-AI agent dengan kemampuan Chain of Thought (CoT) untuk meremote server dan melakukan perintah DevOps secara otomatis.
+![Basking Shark](docs/bs-min.png)
 
-## Fitur
+⚡ **Unleash the Power of AI in Your Server Management!**
 
-- AI agent yang dapat memahami instruksi dalam bahasa alami
-- Chain of Thought (CoT) untuk memecah tugas kompleks menjadi langkah-langkah yang logis
-- Eksekusi otomatis perintah pada server jarak jauh
-- Analisis hasil eksekusi dan rekomendasi langkah selanjutnya
-- Dukungan untuk model AI dari OpenAI (GPT-4), Anthropic (Claude 3.7 Sonnet), dan Qwen (2.5)
-- Antarmuka pengguna yang intuitif dengan Vue.js dan Tailwind CSS
+Basking Shark is a powerful AI-driven server management tool that lets you control your servers using natural language. No more remembering complex commands - just tell the AI what you want to do!
 
-## Teknologi yang Digunakan
+## ✨ Features
 
-- **Frontend**: Vue.js, Tailwind CSS, Vite, Socket.io-client
-- **Backend**: Express.js, Node.js, Socket.io
-- **AI**: 
-  - OpenAI API dengan model GPT-4
-  - Anthropic API dengan model Claude 3.7 Sonnet
-  - Qwen API dengan model Qwen 2.5
-- **Remote Access**: SSH2 library
+- 🤖 **AI-Powered Commands**: Use natural language to manage your servers
+- 🧠 **Smart Reasoning**: AI breaks down complex tasks into simple steps
+- 🔒 **Secure Connections**: Support for both password and SSH key authentication
+- ⚡ **Real-time Execution**: Watch commands execute in real-time
+- 🎯 **Multi-Model Support**: Works with OpenAI, Anthropic, and Qwen
+- 🚀 **Batch Commands**: Execute multiple commands in sequence
 
-## Cara Kerja
+## 🚀 Quick Start
 
-1. **Pemahaman Instruksi**: AI agent menerima instruksi dalam bahasa alami dari pengguna
-2. **Chain of Thought**: AI menggunakan penalaran CoT untuk memecah tugas menjadi langkah-langkah yang logis
-3. **Perencanaan Tindakan**: AI menentukan perintah spesifik yang diperlukan untuk setiap langkah
-4. **Eksekusi Otomatis**: Perintah dijalankan secara otomatis pada server jarak jauh
-5. **Analisis Hasil**: AI menganalisis output dari setiap perintah dan memberikan ringkasan
-6. **Rekomendasi**: AI memberikan rekomendasi untuk langkah selanjutnya atau perbaikan
+1. **Install Dependencies**
+```bash
+# Install server dependencies
+cd server && npm install
 
-## Penyimpanan Data
+# Install client dependencies
+cd ../client && npm install
+```
 
-Aplikasi ini menyimpan data dalam file JSON di folder `server/data/`:
+2. **Configure Environment**
+```bash
+# Copy example config
+cp .env.example .env
 
-1. **llm_config.json**: Menyimpan konfigurasi model LLM dan API key
-2. **servers.json**: Menyimpan daftar server yang telah didaftarkan
+# Add your API keys
+OPENAI_API_KEY=your_key_here
+ANTHROPIC_API_KEY=your_key_here
+```
 
-Folder `data/` telah ditambahkan ke `.gitignore` untuk memastikan informasi sensitif tidak masuk ke repositori.
+3. **Build & Run**
+```bash
+# Build client
+cd client && npm run build
 
-## Cara Menjalankan
+# Start server
+cd ../server && node index.js
+```
 
-### Prasyarat
+## 💡 Usage Examples
 
-- Node.js (versi 14 atau lebih tinggi)
-- NPM (versi 6 atau lebih tinggi)
-- OpenAI API Key
-- Anthropic API Key (opsional)
+1. **System Information**
+```
+Show me the disk usage and memory status
+```
 
-### Langkah-langkah
+2. **File Operations**
+```
+Create a backup of the nginx config files
+```
 
-1. Clone repositori ini
-2. Instal dependensi:
-   ```bash
-   # Instal dependensi server
-   cd server
-   npm install
-   
-   # Instal dependensi client
-   cd ../client
-   npm install
-   ```
+3. **Service Management**
+```
+Check if MySQL is running and show its status
+```
 
-3. Konfigurasi API key (pilih salah satu metode):
-   - **Metode 1**: Melalui file `.env` di folder `server`
-     ```
-     PORT=50539
-     OPENAI_API_KEY=your-openai-api-key
-     ANTHROPIC_API_KEY=your-anthropic-api-key
-     QWEN_API_KEY=your-qwen-api-key
-     ```
-   - **Metode 2**: Melalui antarmuka web setelah aplikasi berjalan
-     - Buka aplikasi di browser
-     - Pilih model AI (OpenAI GPT-4, Claude 3.7 Sonnet, atau Qwen 2.5)
-     - Masukkan API key untuk model yang dipilih
-     - Model yang dipilih akan ditandai sebagai "Active" dan digunakan untuk semua operasi
+4. **Batch Commands**
+```
+Update system packages;
+Clean up old kernels;
+Show system status
+```
 
-4. Jalankan aplikasi:
-   ```bash
-   # Dari root proyek
-   cd server
-   npm start
-   ```
+## ⚙️ Configuration
 
-5. Buka aplikasi di browser:
-   - http://localhost:50539
+- **LLM Settings**: `server/data/llm_config.json`
+- **Server Credentials**: `server/data/servers.json`
+- **Environment**: `.env` file
 
-## Cara Penggunaan
+## 🛠️ Tech Stack
 
-1. **Daftarkan Server**:
-   - Masukkan nama server, host, port, username, dan metode autentikasi
-   - Jika menggunakan password, masukkan password
-   - Jika menggunakan private key, masukkan private key
+- **Frontend**: Vue 3 + Vite + TailwindCSS
+- **Backend**: Node.js + Express + Socket.IO
+- **AI Models**: OpenAI GPT-4, Anthropic Claude, Qwen
+- **Security**: SSH2 + Secure Credential Storage
 
-2. **Pilih Server**:
-   - Pilih server yang telah didaftarkan dari daftar
+## 📜 License
 
-3. **Pilih Model AI**:
-   - Pilih antara OpenAI GPT-4 atau Claude 3.7 Sonnet
-   - Setiap model memiliki kekuatan dan karakteristik yang berbeda
+Copyright (c) 2024 Eka Tresna Irawan <anak10thn@gmail.com>
 
-4. **Berikan Instruksi**:
-   - Jelaskan tugas yang ingin dilakukan dalam bahasa alami
-   - Contoh: "Install dan konfigurasi Nginx sebagai web server"
-   - Anda juga dapat memilih dari contoh instruksi yang tersedia
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-5. **Lihat Proses Chain of Thought**:
-   - AI akan menampilkan proses penalarannya langkah demi langkah
-   - Anda dapat melihat bagaimana AI memecah tugas menjadi langkah-langkah yang logis
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-6. **Pantau Eksekusi**:
-   - Lihat perintah yang dijalankan dan hasilnya secara real-time
-   - Setiap perintah dan outputnya ditampilkan dengan jelas
-
-7. **Tinjau Analisis**:
-   - Setelah semua perintah dijalankan, AI akan memberikan analisis hasil
-   - Analisis mencakup keberhasilan tugas, masalah yang ditemui, dan rekomendasi
-
-## Keamanan
-
-- Kredensial server disimpan hanya dalam memori selama sesi aplikasi berjalan
-- Koneksi SSH menggunakan library SSH2 yang aman
-- Pastikan untuk menggunakan aplikasi ini dalam lingkungan yang aman dan terpercaya
-
-## Pengembangan Lebih Lanjut
-
-- Implementasi penyimpanan kredensial yang aman
-- Penambahan fitur manajemen file
-- Dukungan untuk eksekusi perintah batch
-- Integrasi dengan layanan cloud
-- Penambahan fitur monitoring server
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

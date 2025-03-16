@@ -80,6 +80,105 @@ const saveServers = () => {
   fs.writeFileSync(SERVERS_PATH, JSON.stringify(serversData, null, 2));
 };
 
+// API endpoints for server management
+app.put('/api/servers/:name', (req, res) => {
+  const { name } = req.params;
+  const serverData = req.body;
+
+  console.log('Updating server:', name, 'with data:', {
+    ...serverData,
+    password: serverData.password ? '[REDACTED]' : undefined,
+    privateKey: serverData.privateKey ? '[REDACTED]' : undefined
+  });
+
+  // Check if server exists
+  if (!serverConnections[name]) {
+    console.error('Server not found:', name);
+    return res.status(404).json({ error: 'Server not found' });
+  }
+
+  const currentServer = serverConnections[name];
+
+  // Create updated server object with defaults from current server
+  const updatedServer = {
+    name: name,
+    host: serverData.host || currentServer.host,
+    port: parseInt(serverData.port || currentServer.port) || 22,
+    username: serverData.username || currentServer.username,
+    authType: serverData.authType || currentServer.authType,
+    // Keep existing auth credentials if not provided
+    password: currentServer.password,
+    privateKey: currentServer.privateKey
+  };
+
+  // Validate required fields
+  if (!updatedServer.host || !updatedServer.username || !updatedServer.authType) {
+    console.error('Missing required fields for server:', name);
+    return res.status(400).json({ 
+      error: 'Missing required fields',
+      details: {
+        host: !updatedServer.host ? 'Host is required' : null,
+        username: !updatedServer.username ? 'Username is required' : null,
+        authType: !updatedServer.authType ? 'Authentication type is required' : null
+      }
+    });
+  }
+
+  // Validate port
+  if (isNaN(updatedServer.port) || updatedServer.port < 1 || updatedServer.port > 65535) {
+    console.error('Invalid port number for server:', name, 'port:', updatedServer.port);
+    return res.status(400).json({ error: 'Port must be a number between 1 and 65535' });
+  }
+
+  // Update auth credentials if provided
+  if (updatedServer.authType === 'password') {
+    if (serverData.password) {
+      updatedServer.password = serverData.password;
+      delete updatedServer.privateKey; // Remove private key when switching to password
+    } else if (!currentServer.password) {
+      console.error('Password required for server:', name);
+      return res.status(400).json({ error: 'Password is required for password authentication' });
+    }
+  } else if (updatedServer.authType === 'privateKey') {
+    if (serverData.privateKey) {
+      updatedServer.privateKey = serverData.privateKey;
+      delete updatedServer.password; // Remove password when switching to private key
+    } else if (!currentServer.privateKey) {
+      console.error('Private key required for server:', name);
+      return res.status(400).json({ error: 'Private key is required for key authentication' });
+    }
+  }
+
+  // Save updated server
+  serverConnections[name] = updatedServer;
+  saveServers();
+
+  console.log('Server updated successfully:', name);
+  res.json({ 
+    message: 'Server updated successfully',
+    server: {
+      ...updatedServer,
+      password: updatedServer.password ? '[REDACTED]' : undefined,
+      privateKey: updatedServer.privateKey ? '[REDACTED]' : undefined
+    }
+  });
+});
+
+app.delete('/api/servers/:name', (req, res) => {
+  const { name } = req.params;
+
+  // Check if server exists
+  if (!serverConnections[name]) {
+    return res.status(404).json({ error: 'Server not found' });
+  }
+
+  // Delete server
+  delete serverConnections[name];
+  saveServers();
+
+  res.json({ message: 'Server deleted successfully' });
+});
+
 // Initialize AI clients
 const openai = new OpenAI({
   apiKey: llmConfig.api_keys.openai || 'your-openai-api-key'
@@ -92,14 +191,50 @@ const anthropic = new Anthropic({
 // Qwen API is handled through OpenAI client with a different base URL
 // We'll implement this in the DevOpsAgent class when needed
 
+// Store chat histories for each connection
+const chatHistories = new Map();
+
 // AI Agent with Chain of Thought
 class DevOpsAgent {
-  constructor(model = null) {
+  constructor(model = null, socketId = null) {
     // Use provided model, active model, or default model
     this.model = model || llmConfig.active_model || llmConfig.default_model;
     this.thinking = [];
     this.actions = [];
     this.results = [];
+    this.socketId = socketId;
+    
+    // Initialize chat history for this connection if it doesn't exist
+    if (socketId && !chatHistories.has(socketId)) {
+      chatHistories.set(socketId, []);
+    }
+  }
+
+  getChatHistory() {
+    if (!this.socketId) return [];
+    return chatHistories.get(this.socketId) || [];
+  }
+
+  addToHistory(interaction) {
+    if (!this.socketId) return;
+    const history = this.getChatHistory();
+    history.push(interaction);
+    chatHistories.set(this.socketId, history);
+  }
+
+  getContextFromHistory() {
+    const history = this.getChatHistory();
+    if (history.length === 0) return "";
+
+    // Create a context string from the last 5 interactions
+    return history.slice(-5).map(interaction => {
+      return `User: ${interaction.instruction}
+AI Thought Process: ${interaction.thinking.join("\n")}
+Commands Executed: ${interaction.actions.map(a => a.command).join(", ")}
+Results: ${interaction.results.map(r => r.output).join("\n")}
+Analysis: ${interaction.analysis || ""}
+---`;
+    }).join("\n");
   }
 
   async processInstruction(instruction, serverName, socket) {
@@ -114,10 +249,23 @@ class DevOpsAgent {
         type: 'thinking',
         message: 'Analyzing your instruction...'
       });
+
+      // Create current interaction object
+      const currentInteraction = {
+        instruction,
+        timestamp: new Date().toISOString(),
+        thinking: [],
+        actions: [],
+        results: []
+      };
       
       const planningResult = await this.planWithCoT(instruction, serverName);
       this.thinking = planningResult.thinking;
       this.actions = planningResult.actions;
+      
+      // Update current interaction
+      currentInteraction.thinking = this.thinking;
+      currentInteraction.actions = this.actions;
       
       socket.emit('agent-update', { 
         type: 'thinking-complete',
@@ -162,16 +310,25 @@ class DevOpsAgent {
       
       const analysis = await this.analyzeResults(instruction);
       
+      // Update current interaction with final results
+      currentInteraction.results = this.results;
+      currentInteraction.analysis = analysis;
+      
+      // Add to history
+      this.addToHistory(currentInteraction);
+      
       socket.emit('agent-update', { 
         type: 'complete',
-        analysis: analysis
+        analysis: analysis,
+        history: this.getChatHistory()
       });
       
       return {
         thinking: this.thinking,
         actions: this.actions,
         results: this.results,
-        analysis: analysis
+        analysis: analysis,
+        history: this.getChatHistory()
       };
     } catch (error) {
       socket.emit('agent-update', { 
@@ -410,7 +567,7 @@ Do NOT include any ssh or connection commands in your response - I'm already con
       const context = {
         instruction,
         thinking: this.thinking,
-        actions: this.actions.map(a => a.command),
+        actions: this.actions.map(a => ({ command: a.command, purpose: a.purpose })),
         results: this.results
       };
       
@@ -420,36 +577,74 @@ Do NOT include any ssh or connection commands in your response - I'm already con
                           { provider: 'openai', model: 'gpt-4', temperature: 0.3, max_tokens: 1500 };
       
       // System prompt for all models
-      const systemPrompt = "You are a DevOps AI assistant that analyzes the results of server commands and provides insights. Be thorough but concise.";
+      const systemPrompt = `You are a DevOps AI assistant that analyzes command results and provides clear, actionable insights.
+
+Your analysis should:
+1. Directly answer the user's original question/request
+2. Be specific about what was found or accomplished
+3. Highlight any important findings or issues
+4. Provide clear next steps or recommendations if needed
+
+Format your response using Markdown with this structure:
+
+# Direct Answer
+[Clearly state whether the original request was fulfilled]
+
+## Findings
+- [Discovery 1]
+- [Discovery 2]
+...
+
+## Issues (if any)
+- [Problem 1]
+- [Problem 2]
+...
+
+## Next Steps/Recommendations
+1. [Action step 1]
+2. [Action step 2]
+...
+
+Use proper Markdown formatting:
+- Use \`code\` for commands and technical terms
+- Use **bold** for emphasis
+- Use > for important notes
+- Use --- for separators where needed
+- Use proper heading levels (#, ##, ###)`;
       
       // User prompt for all models
-      const userPrompt = `I executed the following commands based on this instruction: "${context.instruction}"
+      // Get chat history context
+      const historyContext = this.getContextFromHistory();
+      
+      const userPrompt = `${historyContext ? `Previous Interactions:\n${historyContext}\n\n` : ''}Original Request: "${instruction}"
 
-Here are the commands and their results:
-${context.results.map(r => `
+Commands Executed and Results:
+${context.results.map((r, i) => `
 Command: ${r.command}
-Output: ${r.output}
-Error: ${r.error}
+Purpose: ${context.actions[i]?.purpose || 'Not specified'}
+Output: ${r.output || 'No output'}
+Error: ${r.error || 'No errors'}
 Exit Code: ${r.exitCode}
 `).join('\n')}
 
-Please analyze these results and tell me:
-1. Whether the overall task was successful
-2. What each command accomplished
-3. If there were any issues or errors
-4. What the next steps should be (if any)
-5. Any recommendations for improvement`;
+Chain of Thought Analysis:
+${context.thinking.join('\n')}
+
+Please provide a comprehensive analysis that:
+1. Uses the context from previous interactions if relevant
+2. Directly addresses the original request
+3. Explains what was found and any changes from previous states
+4. Provides actionable insights based on the complete context`;
 
       if (modelConfig.provider === 'anthropic') {
         const response = await anthropic.messages.create({
           model: modelConfig.model,
           max_tokens: modelConfig.max_tokens || 1500,
           temperature: modelConfig.temperature || 0.3,
-          system: systemPrompt,
           messages: [
             {
               role: "user",
-              content: userPrompt
+              content: `${systemPrompt}\n\n${userPrompt}\n\nRemember to format your response according to the structure specified above.`
             }
           ]
         });
@@ -473,7 +668,7 @@ Please analyze these results and tell me:
             },
             {
               role: "user",
-              content: userPrompt
+              content: userPrompt + "\n\nRemember to format your response according to the structure specified above."
             }
           ]
         });
@@ -485,6 +680,7 @@ Please analyze these results and tell me:
           model: modelConfig.model,
           temperature: modelConfig.temperature || 0.3,
           max_tokens: modelConfig.max_tokens || 1500,
+          response_format: { type: "text" },
           messages: [
             {
               role: "system",
@@ -492,7 +688,7 @@ Please analyze these results and tell me:
             },
             {
               role: "user",
-              content: userPrompt
+              content: userPrompt + "\n\nRemember to format your response according to the structure specified above."
             }
           ]
         });
@@ -603,7 +799,12 @@ app.post('/api/llm-config', (req, res) => {
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('New client connected');
+  console.log('New client connected:', socket.id);
+  
+  // Send existing history if any
+  if (chatHistories.has(socket.id)) {
+    socket.emit('chat-history', chatHistories.get(socket.id));
+  }
   
   socket.on('process-instruction', async (data) => {
     const { instruction, serverName, model } = data;
@@ -624,13 +825,100 @@ io.on('connection', (socket) => {
       return;
     }
     
-    // Use provided model or active model from config
-    const agent = new DevOpsAgent(model || llmConfig.active_model);
+    // Use provided model or active model from config, and include socket ID
+    const agent = new DevOpsAgent(model || llmConfig.active_model, socket.id);
     await agent.processInstruction(instruction, serverName, socket);
   });
+
+  // Handle batch command execution
+  socket.on('execute-batch', async (data) => {
+    const { commands, serverName } = data;
+    
+    if (!Array.isArray(commands) || commands.length === 0) {
+      socket.emit('batch-update', { 
+        type: 'error',
+        message: 'Commands must be a non-empty array'
+      });
+      return;
+    }
+    
+    if (!serverName || !serverConnections[serverName]) {
+      socket.emit('batch-update', { 
+        type: 'error',
+        message: 'Invalid or missing server name'
+      });
+      return;
+    }
+
+    try {
+      socket.emit('batch-update', {
+        type: 'start',
+        total: commands.length
+      });
+
+      for (let i = 0; i < commands.length; i++) {
+        const command = commands[i].trim();
+        if (!command) continue;
+
+        socket.emit('batch-update', {
+          type: 'executing',
+          command,
+          index: i
+        });
+
+        try {
+          const result = await executeCommand(serverName, command);
+          socket.emit('batch-update', {
+            type: 'result',
+            index: i,
+            command,
+            output: result.output,
+            error: result.errorOutput,
+            exitCode: result.exitCode
+          });
+
+          // Stop batch if a command fails
+          if (result.exitCode !== 0) {
+            socket.emit('batch-update', {
+              type: 'error',
+              message: `Batch execution stopped due to error in command: ${command}`,
+              index: i
+            });
+            break;
+          }
+        } catch (error) {
+          socket.emit('batch-update', {
+            type: 'error',
+            message: `Error executing command: ${error.message}`,
+            command,
+            index: i
+          });
+          break;
+        }
+      }
+
+      socket.emit('batch-update', {
+        type: 'complete'
+      });
+    } catch (error) {
+      socket.emit('batch-update', {
+        type: 'error',
+        message: `Batch execution failed: ${error.message}`
+      });
+    }
+  });
   
+
+
   socket.on('disconnect', () => {
-    console.log('Client disconnected');
+    console.log('Client disconnected:', socket.id);
+    // Keep history for reconnection within 1 hour
+    setTimeout(() => {
+      if (chatHistories.has(socket.id)) {
+        console.log('Cleaning up chat history for:', socket.id);
+        chatHistories.delete(socket.id);
+      }
+    }, 3600000); // 1 hour
   });
 });
 
